@@ -26,9 +26,9 @@ test("App", async () => {
     ]
   `);
   const { findByText } = getQueriesForElement(elementTree.root!);
-  const title = await findByText("Carteira Lynx");
-  const section = await findByText("Atividade recente");
-  const actionButton = await findByText("Adicionar nova transacao");
+  const title = await findByText("Teste Tailwind Lynx");
+  const section = await findByText("Movimentacoes recentes");
+  const actionButton = await findByText("Executar proximo teste");
   expect(title).toBeInTheDocument();
   expect(section).toBeInTheDocument();
   expect(actionButton).toBeInTheDocument();
@@ -36,7 +36,7 @@ test("App", async () => {
     <text
       class="text-center text-sm font-medium text-white"
     >
-      Adicionar nova transacao
+      Executar proximo teste
     </text>
   `);
 });
