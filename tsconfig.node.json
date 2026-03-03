@@ -14,5 +14,9 @@
 
     "noEmit": true
   },
-  "include": ["./lynx.config.ts", "./vitest.config.ts"]
+  "include": [
+    "./lynx.config.ts",
+    "./vitest.config.ts",
+    "./src/lib/lynx-tailwind/**/*.ts"
+  ]
 }

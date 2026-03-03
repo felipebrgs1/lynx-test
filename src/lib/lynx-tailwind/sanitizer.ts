@@ -10,6 +10,7 @@ const REM_UNIT_PATTERN = /(-?\d*\.?\d+)rem\b/g;
 const VIEWPORT_UNIT_PATTERN = /-?\d*\.?\d+(?:vh|vw|vmin|vmax|svh|lvh|dvh)\b/i;
 const PSEUDO_SELECTOR_PATTERN = /(?<!\\)::?([a-z-]+)/gi;
 const TRANSITION_PROPERTY_VALUE_PATTERN = /opacity|transform|none/i;
+const OKLCH_FUNCTION_PATTERN = /oklch\(([^)]+)\)/gi;
 
 function formatDecimal(value: number): string {
   const rounded = Math.round(value * 10000) / 10000;
@@ -34,6 +35,115 @@ function convertRemUnits(value: string, options: ResolvedLynxCssSanitizerOptions
       options.targetLengthUnit === "rpx" ? pxValue * options.rpxPerPx : pxValue;
 
     return `${formatDecimal(outputValue)}${options.targetLengthUnit}`;
+  });
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+function parseAlpha(alphaToken: string | undefined): number | null {
+  if (!alphaToken) {
+    return null;
+  }
+
+  const trimmedAlpha = alphaToken.trim();
+
+  if (trimmedAlpha.length === 0) {
+    return null;
+  }
+
+  if (trimmedAlpha.endsWith("%")) {
+    const percentage = Number.parseFloat(trimmedAlpha.slice(0, -1));
+
+    if (!Number.isFinite(percentage)) {
+      return null;
+    }
+
+    return clamp(percentage / 100, 0, 1);
+  }
+
+  const alpha = Number.parseFloat(trimmedAlpha);
+
+  if (!Number.isFinite(alpha)) {
+    return null;
+  }
+
+  return clamp(alpha, 0, 1);
+}
+
+function toSrgbChannel(linearChannel: number): number {
+  if (!Number.isFinite(linearChannel)) {
+    return 0;
+  }
+
+  const clampedLinearChannel = clamp(linearChannel, 0, 1);
+
+  if (clampedLinearChannel <= 0.0031308) {
+    return 12.92 * clampedLinearChannel;
+  }
+
+  return 1.055 * clampedLinearChannel ** (1 / 2.4) - 0.055;
+}
+
+function convertSingleOklchColor(value: string): string | null {
+  const [mainPart, alphaPart] = value.split("/");
+  const channels = mainPart
+    .trim()
+    .replace(/,/g, " ")
+    .split(/\s+/)
+    .filter((channel: string) => channel.length > 0);
+
+  if (channels.length < 3) {
+    return null;
+  }
+
+  const lightnessToken = channels[0];
+  const chromaToken = channels[1];
+  const hueToken = channels[2];
+
+  const lightness = lightnessToken.endsWith("%")
+    ? Number.parseFloat(lightnessToken.slice(0, -1)) / 100
+    : Number.parseFloat(lightnessToken);
+  const chroma = Number.parseFloat(chromaToken);
+  const hueDegrees = Number.parseFloat(hueToken);
+
+  if (!Number.isFinite(lightness) || !Number.isFinite(chroma) || !Number.isFinite(hueDegrees)) {
+    return null;
+  }
+
+  const alpha = parseAlpha(alphaPart);
+  const hueRadians = (hueDegrees * Math.PI) / 180;
+  const a = chroma * Math.cos(hueRadians);
+  const b = chroma * Math.sin(hueRadians);
+
+  const lPrime = lightness + 0.3963377774 * a + 0.2158037573 * b;
+  const mPrime = lightness - 0.1055613458 * a - 0.0638541728 * b;
+  const sPrime = lightness - 0.0894841775 * a - 1.291485548 * b;
+
+  const l = lPrime ** 3;
+  const m = mPrime ** 3;
+  const s = sPrime ** 3;
+
+  const linearRed = 4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s;
+  const linearGreen = -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s;
+  const linearBlue = -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s;
+
+  const red = Math.round(toSrgbChannel(linearRed) * 255);
+  const green = Math.round(toSrgbChannel(linearGreen) * 255);
+  const blue = Math.round(toSrgbChannel(linearBlue) * 255);
+
+  if (alpha === null || alpha >= 1) {
+    return `rgb(${red}, ${green}, ${blue})`;
+  }
+
+  return `rgba(${red}, ${green}, ${blue}, ${formatDecimal(alpha)})`;
+}
+
+function convertOklchColors(value: string): string {
+  return value.replace(OKLCH_FUNCTION_PATTERN, (fullMatch, innerValue: string) => {
+    const converted = convertSingleOklchColor(innerValue);
+    return converted ?? fullMatch;
   });
 }
 
@@ -269,7 +379,14 @@ function sanitizeDeclaration(
     return;
   }
 
-  declaration.value = valueAfterInlineAndUnitConversion;
+  const valueWithCompatibleColors = convertOklchColors(valueAfterInlineAndUnitConversion);
+
+  if (valueWithCompatibleColors.toLowerCase().includes("oklch(")) {
+    declaration.remove();
+    return;
+  }
+
+  declaration.value = valueWithCompatibleColors;
 }
 
 function sanitizeAtRule(atRule: AtRule, options: ResolvedLynxCssSanitizerOptions): void {

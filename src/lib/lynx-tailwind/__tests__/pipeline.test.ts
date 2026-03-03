@@ -64,6 +64,22 @@ describe("sanitizeLynxCss", () => {
     expect(result.css).not.toContain(".token");
     expect(result.css).not.toContain("color:");
   });
+
+  test("converts oklch colors to rgb for Lynx compatibility", async () => {
+    const result = await sanitizeLynxCss(`
+      :root {
+        --brand-color: oklch(63.7% 0.237 25.331);
+      }
+
+      .token {
+        color: var(--brand-color);
+      }
+    `);
+
+    expect(result.css).toContain(".token");
+    expect(result.css).toContain("color: rgb(");
+    expect(result.css).not.toContain("oklch(");
+  });
 });
 
 describe("buildLynxTailwindCss", () => {

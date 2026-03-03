@@ -84,7 +84,6 @@ const DEFAULT_ALLOWED_PROPERTIES = [
   "letter-spacing",
   "text-align",
   "text-decoration",
-  "text-transform",
   "white-space",
   "overflow",
   "overflow-x",
