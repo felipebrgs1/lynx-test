@@ -10,7 +10,7 @@ O build do Lynx é semelhante ao da Web, compilando os estilos e gerando um arqu
 - **Target Framework:** Lynx (Cross-platform UI framework)
 - **CSS Framework:** Tailwind CSS v4 (Oxide engine, Rust-based)
 - **Linguagem do Plugin:** TypeScript / Node.js
-- **Build Tool:** (Especifique aqui se é um plugin Vite, Rspack, Webpack, ou Rollup - ex: Rspack é muito comum no ecossistema ByteDance/Lynx).
+- **Build Tool (real do projeto):** Rspeedy (baseado em **Rsbuild + Rspack**)
 - **Processamento de CSS:** PostCSS / Lightning CSS (dependendo da integração do TW v4)
 
 ## 3. Regras Críticas para o Tailwind CSS v4
@@ -58,3 +58,27 @@ Quando você, Agente, for solicitado a implementar uma feature, assuma:
 
 - Estamos construindo a ponte entre `CSS TW v4 -> Plugin Node.js -> main.css compatível com Lynx`.
 - Se tiver dúvidas sobre se o Lynx suporta uma propriedade CSS que o Tailwind gerou, pergunte ao usuário antes de implementar a transformação.
+
+## 8. Aprendizados Validados no Projeto
+
+Estes pontos já foram observados na prática neste repositório e devem guiar as próximas implementações:
+
+- **Integração no build:** o plugin foi integrado via `pluginLynxTailwind()` no `lynx.config.ts` (hook de `tools.postcss` do Rsbuild).
+- **Tailwind no app de teste:** para Lynx, preferir no `App.css`:
+  - `@import "tailwindcss/theme" layer(theme);`
+  - `@import "tailwindcss/utilities" layer(utilities);`
+  Isso evita `preflight` web que pode gerar problemas de parse (ex: seletores `:host,html`).
+- **Cores do Tailwind v4:** o Tailwind gera muitas cores em `oklch(...)`. O Lynx pode não aplicar corretamente. O sanitizer deve converter `oklch` para `rgb/rgba`.
+- **Variáveis CSS do Tailwind:** valores `var(--...)` precisam ser resolvidos/inline quando possível. Se a variável não puder ser resolvida, remover a declaração para evitar CSS inválido no runtime.
+- **Unidades:** converter `rem` para unidade suportada (`rpx` por padrão). Fazer conversão também após inlining de variável (ex: `calc(var(--spacing) * 4)`).
+- **Propriedades não suportadas observadas:** `text-transform` causou erro real de build no Lynx (`Error In CSSParse: "text-transform" is not supported now !`) e foi removida da allow-list.
+- **Pseudo-classes:** `:hover`/`active` etc podem existir no Tailwind, mas devem ser tratadas como baixa compatibilidade no Lynx (filtrar quando necessário).
+- **Scroll no Lynx:** para conteúdo rolável, usar componente `scroll-view` com `scroll-y`; em cenários de teste, usar altura explícita para garantir área de rolagem.
+- **TypeScript do config Node:** se `lynx.config.ts` importar código em `src/lib/...`, incluir esses arquivos em `tsconfig.node.json` para evitar `TS6307`.
+- **Compatibilidade TS alvo Node:** evitar APIs que podem falhar no target atual (ex: trocar `replaceAll` por `replace(/.../g, ...)` quando necessário).
+- **Estratégia de segurança no plugin:** manter abordagem de allow-list para propriedades/at-rules/pseudo-selectors, em vez de block-list.
+- **Testes:** manter testes unitários do pipeline (`sanitizeLynxCss` / `buildLynxTailwindCss`) cobrindo:
+  - remoção de regras incompatíveis
+  - resolução de variáveis
+  - conversão de unidades
+  - conversão de `oklch` para `rgb/rgba`
