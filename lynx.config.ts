@@ -5,6 +5,11 @@ import { pluginReactLynx } from "@lynx-js/react-rsbuild-plugin";
 import { pluginTypeCheck } from "@rsbuild/plugin-type-check";
 
 export default defineConfig({
+  server: {
+    port: 3000,
+    host: "0.0.0.0",
+    strictPort: true,
+  },
   plugins: [
     pluginQRCode({
       schema(url) {

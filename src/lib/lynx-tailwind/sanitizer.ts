@@ -157,16 +157,21 @@ function hasUnsupportedPseudoSelector(
 ): boolean {
   PSEUDO_SELECTOR_PATTERN.lastIndex = 0;
 
-  for (const match of selector.matchAll(PSEUDO_SELECTOR_PATTERN)) {
+  let match: RegExpExecArray | null = PSEUDO_SELECTOR_PATTERN.exec(selector);
+
+  while (match !== null) {
     const pseudo = match[1]?.toLowerCase();
 
     if (!pseudo) {
+      match = PSEUDO_SELECTOR_PATTERN.exec(selector);
       continue;
     }
 
     if (!options.allowedPseudoSelectors.has(pseudo)) {
       return true;
     }
+
+    match = PSEUDO_SELECTOR_PATTERN.exec(selector);
   }
 
   return false;

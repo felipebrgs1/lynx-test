@@ -11,8 +11,10 @@
     "preview": "rspeedy preview",
     "test": "vitest run",
     "android:reverse": "adb reverse tcp:3000 tcp:3000",
+    "android:reverse:list": "adb reverse --list",
     "android:emulator": "emulator -avd Small_Phone",
-    "android:open": "adb shell am start -n com.lynx.explorer/.LynxViewShellActivity --es url 'http://localhost:3000/main.lynx.bundle?fullscreen=true'"
+    "android:open": "adb shell am start -n com.lynx.explorer/.LynxViewShellActivity --es url 'http://localhost:3000/main.lynx.bundle?fullscreen=true'",
+    "android:open:emulator": "adb shell am start -n com.lynx.explorer/.LynxViewShellActivity --es url 'http://10.0.2.2:3000/main.lynx.bundle?fullscreen=true'"
   },
   "dependencies": {
     "@lynx-js/react": "^0.116.3"
