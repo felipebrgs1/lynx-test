@@ -36,7 +36,7 @@ export function App(props: { onRender?: () => void }) {
   props.onRender?.();
 
   return (
-    <view className="relative h-full bg-slate-300 p-1">
+    <view className="relative h-full bg-blue-900 p-1">
       <view className="h-full rounded  ">
         <scroll-view scroll-y className="h-full">
           <view className="gap-4 pb-24">
